@@ -25,7 +25,7 @@ import com.crossover.techtrial.model.Member;
 import com.crossover.techtrial.repositories.MemberRepository;
 
 /**
- * @author kshah
+ * @author ankit ranjan
  *
  */
 @RunWith(SpringJUnit4ClassRunner.class)

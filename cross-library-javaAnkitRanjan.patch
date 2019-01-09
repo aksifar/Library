@@ -1,0 +1,1148 @@
+From 7bcfbf06547040e3ebf8aee4e979b69d7ea97087 Mon Sep 17 00:00:00 2001
+From: ankit ranjan <ankit.ranjan@accolitelabs.com>
+Date: Wed, 9 Jan 2019 23:20:08 +0530
+Subject: [PATCH] My submission
+XOV: XO_0_0_1
+
+---
+ .gitignore                                         |   2 +
+ gradlew                                            |   0
+ .../crossover/techtrial/constants/Constants.java   |   5 +
+ .../techtrial/controller/BookController.java       |   4 +-
+ .../techtrial/controller/MemberController.java     |  26 ++---
+ .../controller/TransactionController.java          |  58 ++++++----
+ .../techtrial/controller/mapper/MemberMapper.java  |  28 +++++
+ .../exceptions/BookAlreadyIssuedException.java     |  17 +++
+ .../techtrial/exceptions/BookLimitException.java   |  16 +++
+ .../exceptions/BookNotIssuedException.java         |  17 +++
+ .../exceptions/EntityNotFoundException.java        |  17 +++
+ .../java/com/crossover/techtrial/model/Book.java   |  19 +++-
+ .../java/com/crossover/techtrial/model/Member.java |  45 +++++---
+ .../techtrial/repositories/MemberRepository.java   |  10 ++
+ .../repositories/TransactionRepository.java        |   1 +
+ .../crossover/techtrial/service/BookService.java   |   6 +-
+ .../techtrial/service/BookServiceImpl.java         |  16 +--
+ .../crossover/techtrial/service/MemberService.java |  10 +-
+ .../techtrial/service/MemberServiceImpl.java       |  38 ++++++-
+ .../techtrial/service/TransactionService.java      |  17 +++
+ .../techtrial/service/TransactionServiceImpl.java  |  73 ++++++++++++
+ src/main/resources/application.properties          |   9 +-
+ .../techtrial/controller/BookControllerTest.java   |  95 ++++++++++++++++
+ .../techtrial/controller/MemberControllerTest.java |  34 ++++--
+ .../controller/TransactionControllerTest.java      | 122 +++++++++++++++++++++
+ 25 files changed, 600 insertions(+), 85 deletions(-)
+ mode change 100755 => 100644 gradlew
+ create mode 100644 src/main/java/com/crossover/techtrial/constants/Constants.java
+ create mode 100644 src/main/java/com/crossover/techtrial/controller/mapper/MemberMapper.java
+ create mode 100644 src/main/java/com/crossover/techtrial/exceptions/BookAlreadyIssuedException.java
+ create mode 100644 src/main/java/com/crossover/techtrial/exceptions/BookLimitException.java
+ create mode 100644 src/main/java/com/crossover/techtrial/exceptions/BookNotIssuedException.java
+ create mode 100644 src/main/java/com/crossover/techtrial/exceptions/EntityNotFoundException.java
+ create mode 100644 src/main/java/com/crossover/techtrial/service/TransactionService.java
+ create mode 100644 src/main/java/com/crossover/techtrial/service/TransactionServiceImpl.java
+ create mode 100644 src/test/java/com/crossover/techtrial/controller/BookControllerTest.java
+ create mode 100644 src/test/java/com/crossover/techtrial/controller/TransactionControllerTest.java
+
+diff --git a/.gitignore b/.gitignore
+index 38e8d91..50de95f 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -7,3 +7,5 @@ build/*
+ target/*
+ **/.DS_Store
+ **/.settings
++/.gradle/
++/bin/
+diff --git a/gradlew b/gradlew
+old mode 100755
+new mode 100644
+diff --git a/src/main/java/com/crossover/techtrial/constants/Constants.java b/src/main/java/com/crossover/techtrial/constants/Constants.java
+new file mode 100644
+index 0000000..63c8b34
+--- /dev/null
++++ b/src/main/java/com/crossover/techtrial/constants/Constants.java
+@@ -0,0 +1,5 @@
++package com.crossover.techtrial.constants;
++
++public class Constants {
++	public static final int MAX_NUMBER_OF_BOOK_ALLOWED = 5;
++}
+diff --git a/src/main/java/com/crossover/techtrial/controller/BookController.java b/src/main/java/com/crossover/techtrial/controller/BookController.java
+index a171514..5c8e9df 100644
+--- a/src/main/java/com/crossover/techtrial/controller/BookController.java
++++ b/src/main/java/com/crossover/techtrial/controller/BookController.java
+@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.PathVariable;
+ import org.springframework.web.bind.annotation.PostMapping;
+ import org.springframework.web.bind.annotation.RequestBody;
+ import org.springframework.web.bind.annotation.RestController;
++
++import com.crossover.techtrial.exceptions.EntityNotFoundException;
+ import com.crossover.techtrial.model.Book;
+ import com.crossover.techtrial.service.BookService;
+ 
+@@ -45,7 +47,7 @@ public class BookController {
+    * PLEASE DO NOT CHANGE API SIGNATURE OR METHOD TYPE OF END POINTS
+    */
+   @GetMapping(path = "/api/book/{book-id}")
+-  public ResponseEntity<Book> getRideById(@PathVariable(name="book-id",required=true)Long bookId){
++  public ResponseEntity<Book> getBookById(@PathVariable(name="book-id",required=true)Long bookId) throws EntityNotFoundException{
+     Book book = bookService.findById(bookId);
+     if (book!=null)
+       return ResponseEntity.ok(book);
+diff --git a/src/main/java/com/crossover/techtrial/controller/MemberController.java b/src/main/java/com/crossover/techtrial/controller/MemberController.java
+index 7f613ce..0d3aa6d 100644
+--- a/src/main/java/com/crossover/techtrial/controller/MemberController.java
++++ b/src/main/java/com/crossover/techtrial/controller/MemberController.java
+@@ -4,8 +4,8 @@
+ package com.crossover.techtrial.controller;
+ 
+ import java.time.LocalDateTime;
+-import java.util.ArrayList;
+ import java.util.List;
++
+ import org.springframework.beans.factory.annotation.Autowired;
+ import org.springframework.format.annotation.DateTimeFormat;
+ import org.springframework.http.ResponseEntity;
+@@ -15,7 +15,10 @@ import org.springframework.web.bind.annotation.PostMapping;
+ import org.springframework.web.bind.annotation.RequestBody;
+ import org.springframework.web.bind.annotation.RequestParam;
+ import org.springframework.web.bind.annotation.RestController;
++
++import com.crossover.techtrial.controller.mapper.MemberMapper;
+ import com.crossover.techtrial.dto.TopMemberDTO;
++import com.crossover.techtrial.exceptions.EntityNotFoundException;
+ import com.crossover.techtrial.model.Member;
+ import com.crossover.techtrial.service.MemberService;
+ 
+@@ -33,8 +36,8 @@ public class MemberController {
+    * PLEASE DO NOT CHANGE SIGNATURE OR METHOD TYPE OF END POINTS
+    */
+   @PostMapping(path = "/api/member")
+-  public ResponseEntity<Member> register(@RequestBody Member p) {
+-    return ResponseEntity.ok(memberService.save(p));
++  public ResponseEntity<Member> register(@RequestBody Member member) {
++    return ResponseEntity.ok(memberService.save(member));
+   }
+   
+   /*
+@@ -49,7 +52,7 @@ public class MemberController {
+    * PLEASE DO NOT CHANGE API SIGNATURE OR METHOD TYPE OF END POINTS
+    */
+   @GetMapping(path = "/api/member/{member-id}")
+-  public ResponseEntity<Member> getMemberById(@PathVariable(name="member-id", required=true)Long memberId) {
++  public ResponseEntity<Member> getMemberById(@PathVariable(name="member-id", required=true)Long memberId) throws EntityNotFoundException {
+     Member member = memberService.findById(memberId);
+     if (member != null) {
+       return ResponseEntity.ok(member);
+@@ -65,19 +68,14 @@ public class MemberController {
+    * 
+    * DONT CHANGE METHOD SIGNATURE AND RETURN TYPES
+    * @return
++ * @throws EntityNotFoundException 
+    */
+   @GetMapping(path = "/api/member/top-member")
+   public ResponseEntity<List<TopMemberDTO>> getTopMembers(
+       @RequestParam(value="startTime", required=true) @DateTimeFormat(pattern="yyyy-MM-dd'T'HH:mm:ss") LocalDateTime startTime,
+-      @RequestParam(value="endTime", required=true) @DateTimeFormat(pattern="yyyy-MM-dd'T'HH:mm:ss") LocalDateTime endTime){
+-    List<TopMemberDTO> topDrivers = new ArrayList<>();
+-    /**
+-     * Your Implementation Here. 
+-     * 
+-     */
+-    
+-    return ResponseEntity.ok(topDrivers);
+-    
++      @RequestParam(value="endTime", required=true) @DateTimeFormat(pattern="yyyy-MM-dd'T'HH:mm:ss") LocalDateTime endTime) throws EntityNotFoundException
++  {
++	 List<TopMemberDTO> topMembers = MemberMapper.makeTopMemberList( memberService.getTopMembers(startTime, endTime));
++     return ResponseEntity.ok(topMembers);
+   }
+-  
+ }
+diff --git a/src/main/java/com/crossover/techtrial/controller/TransactionController.java b/src/main/java/com/crossover/techtrial/controller/TransactionController.java
+index 83f41b8..e38f004 100644
+--- a/src/main/java/com/crossover/techtrial/controller/TransactionController.java
++++ b/src/main/java/com/crossover/techtrial/controller/TransactionController.java
+@@ -3,55 +3,73 @@
+  */
+ package com.crossover.techtrial.controller;
+ 
+-import java.time.LocalDateTime;
+ import java.util.Map;
++
+ import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.http.HttpStatus;
+ import org.springframework.http.ResponseEntity;
+ import org.springframework.web.bind.annotation.PatchMapping;
+ import org.springframework.web.bind.annotation.PathVariable;
+ import org.springframework.web.bind.annotation.PostMapping;
+ import org.springframework.web.bind.annotation.RequestBody;
+ import org.springframework.web.bind.annotation.RestController;
++
++import com.crossover.techtrial.exceptions.BookAlreadyIssuedException;
++import com.crossover.techtrial.exceptions.BookLimitException;
++import com.crossover.techtrial.exceptions.BookNotIssuedException;
++import com.crossover.techtrial.exceptions.EntityNotFoundException;
+ import com.crossover.techtrial.model.Transaction;
+-import com.crossover.techtrial.repositories.BookRepository;
+-import com.crossover.techtrial.repositories.MemberRepository;
+-import com.crossover.techtrial.repositories.TransactionRepository;
++import com.crossover.techtrial.service.TransactionService;
+ 
+ /**
+- * @author kshah
++ * @author ankit ranjan
+  *
+  */
+ @RestController
+ public class TransactionController {
+   
+-  @Autowired TransactionRepository transactionRepository;
+-  
+-  @Autowired BookRepository bookRepository;
++  @Autowired TransactionService transactionService;
+   
+-  @Autowired MemberRepository memberRepository;
+   /*
+    * PLEASE DO NOT CHANGE SIGNATURE OR METHOD TYPE OF END POINTS
+    * Example Post Request :  { "bookId":1,"memberId":33 }
+    */
+   @PostMapping(path = "/api/transaction")
+-  public ResponseEntity<Transaction> issueBookToMember(@RequestBody Map<String, Long> params){
+-    
++  public ResponseEntity<Transaction> issueBookToMember(@RequestBody Map<String, Long> params) {
++	
++	Transaction transaction;
+     Long bookId = params.get("bookId");
+     Long memberId = params.get("memberId");
+-    Transaction transaction = new Transaction();
+-    transaction.setBook(bookRepository.findById(bookId).orElse(null));
+-    transaction.setMember(memberRepository.findById(memberId).get());
+-    transaction.setDateOfIssue(LocalDateTime.now());    
+-    return ResponseEntity.ok().body(transactionRepository.save(transaction));
++    
++    try 
++    {
++    	transaction = transactionService.issueBookToMember(bookId, memberId);
++	} 
++    catch (EntityNotFoundException e) {
++		return ResponseEntity.notFound().build();
++	} 
++    catch (BookAlreadyIssuedException | BookLimitException e) {
++    	return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
++	}
++    return ResponseEntity.ok().body(transaction);
+   }
++  
++  
+   /*
+    * PLEASE DO NOT CHANGE SIGNATURE OR METHOD TYPE OF END POINTS
+    */
+   @PatchMapping(path= "/api/transaction/{transaction-id}/return")
+-  public ResponseEntity<Transaction> returnBookTransaction(@PathVariable(name="transaction-id") Long transactionId){
+-    Transaction transaction = transactionRepository.findById(transactionId).get();
+-    transaction.setDateOfReturn(LocalDateTime.now());
++  public ResponseEntity<Transaction> returnBookTransaction(@PathVariable(name="transaction-id") Long transactionId) throws EntityNotFoundException{
++    Transaction transaction;
++	try 
++	{
++		transaction = transactionService.returnBook(transactionId);
++	} 
++	catch (BookNotIssuedException e) 
++	{
++		return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
++	}
+     return ResponseEntity.ok().body(transaction);
+   }
+-
++  
+ }
+diff --git a/src/main/java/com/crossover/techtrial/controller/mapper/MemberMapper.java b/src/main/java/com/crossover/techtrial/controller/mapper/MemberMapper.java
+new file mode 100644
+index 0000000..2ba57d7
+--- /dev/null
++++ b/src/main/java/com/crossover/techtrial/controller/mapper/MemberMapper.java
+@@ -0,0 +1,28 @@
++package com.crossover.techtrial.controller.mapper;
++import java.util.Collection;
++import java.util.List;
++import java.util.stream.Collectors;
++
++import com.crossover.techtrial.dto.TopMemberDTO;
++import com.crossover.techtrial.model.Member;
++
++public class MemberMapper {
++
++	private static TopMemberDTO makeTopMember(Member member)
++    {
++    	TopMemberDTO topMember = new TopMemberDTO();
++    	
++    	topMember.setMemberId(member.getId());
++    	topMember.setName(member.getName());
++    	topMember.setEmail(member.getEmail());
++    	topMember.setBookCount(member.getBookCount());
++        return topMember;
++    }
++
++	public static List<TopMemberDTO> makeTopMemberList(Collection<Member> members)
++    {
++        return members.stream()
++            .map(MemberMapper::makeTopMember)
++            .collect(Collectors.toList());
++    }
++}
+diff --git a/src/main/java/com/crossover/techtrial/exceptions/BookAlreadyIssuedException.java b/src/main/java/com/crossover/techtrial/exceptions/BookAlreadyIssuedException.java
+new file mode 100644
+index 0000000..bbf87e3
+--- /dev/null
++++ b/src/main/java/com/crossover/techtrial/exceptions/BookAlreadyIssuedException.java
+@@ -0,0 +1,17 @@
++package com.crossover.techtrial.exceptions;
++
++import org.springframework.http.HttpStatus;
++import org.springframework.web.bind.annotation.ResponseStatus;
++
++@ResponseStatus(value = HttpStatus.FORBIDDEN, reason = "Book you're looking for has been issue to another member")
++public class BookAlreadyIssuedException extends Exception
++{
++
++	private static final long serialVersionUID = -7576163799151409630L;
++
++	public BookAlreadyIssuedException(String message)
++    {
++        super(message);
++    }
++
++}
+diff --git a/src/main/java/com/crossover/techtrial/exceptions/BookLimitException.java b/src/main/java/com/crossover/techtrial/exceptions/BookLimitException.java
+new file mode 100644
+index 0000000..03854db
+--- /dev/null
++++ b/src/main/java/com/crossover/techtrial/exceptions/BookLimitException.java
+@@ -0,0 +1,16 @@
++package com.crossover.techtrial.exceptions;
++
++import org.springframework.http.HttpStatus;
++import org.springframework.web.bind.annotation.ResponseStatus;
++
++@ResponseStatus(value = HttpStatus.FORBIDDEN, reason = "Member has reached maximum  number of books issued. Please return a book to issue this book.")
++public class BookLimitException extends Exception
++{
++	private static final long serialVersionUID = 3048811182524130729L;
++
++	public BookLimitException(String message)
++    {
++        super(message);
++    }
++
++}
+diff --git a/src/main/java/com/crossover/techtrial/exceptions/BookNotIssuedException.java b/src/main/java/com/crossover/techtrial/exceptions/BookNotIssuedException.java
+new file mode 100644
+index 0000000..93ffee9
+--- /dev/null
++++ b/src/main/java/com/crossover/techtrial/exceptions/BookNotIssuedException.java
+@@ -0,0 +1,17 @@
++package com.crossover.techtrial.exceptions;
++
++import org.springframework.http.HttpStatus;
++import org.springframework.web.bind.annotation.ResponseStatus;
++
++@ResponseStatus(value = HttpStatus.FORBIDDEN, reason = "Book you are trying to return has nnot been issued")
++public class BookNotIssuedException extends Exception
++{
++
++	private static final long serialVersionUID = 3263345561884160863L;
++
++	public BookNotIssuedException(String message)
++    {
++        super(message);
++    }
++
++}
+diff --git a/src/main/java/com/crossover/techtrial/exceptions/EntityNotFoundException.java b/src/main/java/com/crossover/techtrial/exceptions/EntityNotFoundException.java
+new file mode 100644
+index 0000000..b341ab6
+--- /dev/null
++++ b/src/main/java/com/crossover/techtrial/exceptions/EntityNotFoundException.java
+@@ -0,0 +1,17 @@
++package com.crossover.techtrial.exceptions;
++
++import org.springframework.http.HttpStatus;
++import org.springframework.web.bind.annotation.ResponseStatus;
++
++@ResponseStatus(value = HttpStatus.NOT_FOUND, reason = "Could not find entity with id.")
++public class EntityNotFoundException extends Exception
++{
++    static final long serialVersionUID = -3387516993334229948L;
++
++
++    public EntityNotFoundException(String message)
++    {
++        super(message);
++    }
++
++}
+diff --git a/src/main/java/com/crossover/techtrial/model/Book.java b/src/main/java/com/crossover/techtrial/model/Book.java
+index b0ecd65..647cad7 100644
+--- a/src/main/java/com/crossover/techtrial/model/Book.java
++++ b/src/main/java/com/crossover/techtrial/model/Book.java
+@@ -12,7 +12,7 @@ import javax.persistence.Id;
+ import javax.persistence.Table;
+ 
+ /**
+- * @author kshah
++ * @author ankit ranjan
+  *
+  */
+ @Entity
+@@ -26,11 +26,14 @@ public class Book implements Serializable{
+   
+   @Id
+   @GeneratedValue(strategy = GenerationType.IDENTITY)
+-  Long id;
++  private Long id;
+ 
+   @Column(name = "title")
+-  String title;
++  private String title;
+ 
++  @Column()
++  private Boolean isIssued = false;
++  
+   public Long getId() {
+     return id;
+   }
+@@ -47,7 +50,15 @@ public class Book implements Serializable{
+     this.title = title;
+   }
+   
+-  @Override
++  public Boolean getIsIssued() {
++	return isIssued;
++  }
++
++  public void setIsIssued(Boolean isIssued) {
++	this.isIssued = isIssued;
++  }
++
++@Override
+   public int hashCode() {
+     final int prime = 31;
+     int result = 1;
+diff --git a/src/main/java/com/crossover/techtrial/model/Member.java b/src/main/java/com/crossover/techtrial/model/Member.java
+index 99cfb29..b06dd86 100644
+--- a/src/main/java/com/crossover/techtrial/model/Member.java
++++ b/src/main/java/com/crossover/techtrial/model/Member.java
+@@ -5,6 +5,7 @@ package com.crossover.techtrial.model;
+ 
+ import java.io.Serializable;
+ import java.time.LocalDateTime;
++
+ import javax.persistence.Column;
+ import javax.persistence.Entity;
+ import javax.persistence.EnumType;
+@@ -13,32 +14,44 @@ import javax.persistence.GeneratedValue;
+ import javax.persistence.GenerationType;
+ import javax.persistence.Id;
+ import javax.persistence.Table;
++import javax.persistence.UniqueConstraint;
++import javax.validation.constraints.Max;
++import javax.validation.constraints.Pattern;
++import javax.validation.constraints.Size;
+ 
+ /**
+- * @author kshah
++ * @author ankit ranjan
+  *
+  */
+ @Entity
+-@Table(name = "member")
++@Table(name = "member", uniqueConstraints = @UniqueConstraint(name = "member_email", columnNames = {"email"}))
+ public class Member implements Serializable{
+   
+   private static final long serialVersionUID = 9045098179799205444L;
+   
+   @Id
+   @GeneratedValue(strategy = GenerationType.IDENTITY)
+-  Long id;
++  private Long id;
+ 
+   @Column(name = "name")
+-  String name;
+-
+-  @Column(name = "email")
+-  String email;
++  @Size(min = 2, max = 100,  message = "Name must be between 2 and 100 characters")
++  @Pattern(regexp  ="^[a-zA-Z][a-zA-Z 0-9.,$;]+$")
++  private String name;
++
++  @Size(max = 100)
++  @Column(name = "email", unique=true)
++//  @Email(message = "Email should be valid")
++  private String email;
+   
+   @Enumerated(EnumType.STRING)
+-  MembershipStatus membershipStatus;
++  private MembershipStatus membershipStatus;
+   
+   @Column(name = "membership_start_date")
+-  LocalDateTime membershipStartDate;
++  private LocalDateTime membershipStartDate = LocalDateTime.now();
++  
++  @Column(name ="book_count")
++  @Max(value = 5)
++  private int bookCount = 0; 
+ 
+   public Long getId() {
+     return id;
+@@ -80,7 +93,15 @@ public class Member implements Serializable{
+     this.membershipStartDate = membershipStartDate;
+   }
+ 
+-  @Override
++  public int getBookCount() {
++	return bookCount;
++  }
++
++	public void setBookCount(int bookCount) {
++		this.bookCount = bookCount;
++	}
++
++@Override
+   public int hashCode() {
+     final int prime = 31;
+     int result = 1;
+@@ -121,8 +142,4 @@ public class Member implements Serializable{
+   public String toString() {
+     return "Member [id=" + id + ", name=" + name + ", email=" + email + "]";
+   }
+-  
+-  
+-  
+-
+ }
+diff --git a/src/main/java/com/crossover/techtrial/repositories/MemberRepository.java b/src/main/java/com/crossover/techtrial/repositories/MemberRepository.java
+index 303d98a..4d7077b 100644
+--- a/src/main/java/com/crossover/techtrial/repositories/MemberRepository.java
++++ b/src/main/java/com/crossover/techtrial/repositories/MemberRepository.java
+@@ -3,10 +3,15 @@
+  */
+ package com.crossover.techtrial.repositories;
+ 
++import java.time.LocalDateTime;
+ import java.util.List;
+ import java.util.Optional;
++
++import org.springframework.data.jpa.repository.Query;
+ import org.springframework.data.repository.PagingAndSortingRepository;
++import org.springframework.data.repository.query.Param;
+ import org.springframework.data.rest.core.annotation.RestResource;
++
+ import com.crossover.techtrial.model.Member;
+ 
+ /**
+@@ -17,4 +22,9 @@ import com.crossover.techtrial.model.Member;
+ public interface MemberRepository extends PagingAndSortingRepository<Member, Long> {
+   Optional<Member> findById(Long id);
+   List<Member> findAll();
++  
++ @Query(value="SELECT member_id FROM crosslibrary.transaction WHERE date_of_issue >= :startTime \n" + 
++  		"AND (date_of_return <= :endTime && date_of_return IS NOT NULL)\n" + 
++  		"GROUP BY member_id ORDER BY COUNT(*) DESC LIMIT 5",  nativeQuery = true)
++  List<Long> findTopMembers(@Param("startTime") LocalDateTime startTime, @Param("endTime")  LocalDateTime endTime);
+ }
+diff --git a/src/main/java/com/crossover/techtrial/repositories/TransactionRepository.java b/src/main/java/com/crossover/techtrial/repositories/TransactionRepository.java
+index cba1dbe..6ea1ce6 100644
+--- a/src/main/java/com/crossover/techtrial/repositories/TransactionRepository.java
++++ b/src/main/java/com/crossover/techtrial/repositories/TransactionRepository.java
+@@ -14,4 +14,5 @@ import org.springframework.data.rest.core.annotation.RestResource;
+ @RestResource(exported = false)
+ public interface TransactionRepository extends CrudRepository<Transaction, Long> {
+ 
++	public Transaction save(Transaction transaction);
+ }
+diff --git a/src/main/java/com/crossover/techtrial/service/BookService.java b/src/main/java/com/crossover/techtrial/service/BookService.java
+index 00dbba7..166e3ca 100644
+--- a/src/main/java/com/crossover/techtrial/service/BookService.java
++++ b/src/main/java/com/crossover/techtrial/service/BookService.java
+@@ -4,6 +4,8 @@
+ package com.crossover.techtrial.service;
+ 
+ import java.util.List;
++
++import com.crossover.techtrial.exceptions.EntityNotFoundException;
+ import com.crossover.techtrial.model.Book;
+ 
+ /**
+@@ -15,8 +17,8 @@ public interface BookService {
+   
+   public List<Book> getAll();
+   
+-  public Book save(Book p);
++  public Book save(Book book);
+   
+-  public Book findById(Long bookId);
++  public Book findById(Long bookId) throws EntityNotFoundException;
+   
+ }
+diff --git a/src/main/java/com/crossover/techtrial/service/BookServiceImpl.java b/src/main/java/com/crossover/techtrial/service/BookServiceImpl.java
+index a8422db..07b5bce 100644
+--- a/src/main/java/com/crossover/techtrial/service/BookServiceImpl.java
++++ b/src/main/java/com/crossover/techtrial/service/BookServiceImpl.java
+@@ -5,9 +5,11 @@ package com.crossover.techtrial.service;
+ 
+ import java.util.ArrayList;
+ import java.util.List;
+-import java.util.Optional;
++
+ import org.springframework.beans.factory.annotation.Autowired;
+ import org.springframework.stereotype.Service;
++
++import com.crossover.techtrial.exceptions.EntityNotFoundException;
+ import com.crossover.techtrial.model.Book;
+ import com.crossover.techtrial.repositories.BookRepository;
+ import com.crossover.techtrial.repositories.TransactionRepository;
+@@ -27,9 +29,9 @@ public class BookServiceImpl implements BookService{
+   
+   @Override
+   public List<Book> getAll() {
+-    List<Book> personList = new ArrayList<>();
+-    bookRepository.findAll().forEach(personList::add);
+-    return personList;
++    List<Book> bookList = new ArrayList<>();
++    bookRepository.findAll().forEach(bookList::add);
++    return bookList;
+     
+   }
+   
+@@ -38,9 +40,9 @@ public class BookServiceImpl implements BookService{
+   }
+ 
+   @Override
+-  public Book findById(Long bookId) {
+-    Optional<Book> dbPerson = bookRepository.findById(bookId);
+-    return dbPerson.orElse(null);
++  public Book findById(Long bookId) throws EntityNotFoundException{
++	  return bookRepository.findById(bookId)
++	            .orElseThrow(() -> new EntityNotFoundException("Could not find book with id: " + bookId));
+   }
+ 
+ }
+diff --git a/src/main/java/com/crossover/techtrial/service/MemberService.java b/src/main/java/com/crossover/techtrial/service/MemberService.java
+index a4fe6ce..c086cfc 100644
+--- a/src/main/java/com/crossover/techtrial/service/MemberService.java
++++ b/src/main/java/com/crossover/techtrial/service/MemberService.java
+@@ -3,7 +3,10 @@
+  */
+ package com.crossover.techtrial.service;
+ 
++import java.time.LocalDateTime;
+ import java.util.List;
++
++import com.crossover.techtrial.exceptions.EntityNotFoundException;
+ import com.crossover.techtrial.model.Member;
+ 
+ /**
+@@ -15,8 +18,11 @@ public interface MemberService {
+   
+   public Member save(Member member);
+   
+-  public Member findById(Long memberId);
++  public Member findById(Long memberId) throws EntityNotFoundException;
+   
+   public List<Member> findAll();
+-  
++
++  public List<Member> getTopMembers(LocalDateTime startTime, LocalDateTime endTime) throws EntityNotFoundException;
++
+ }
++
+diff --git a/src/main/java/com/crossover/techtrial/service/MemberServiceImpl.java b/src/main/java/com/crossover/techtrial/service/MemberServiceImpl.java
+index 5fbf1a1..ca1d374 100644
+--- a/src/main/java/com/crossover/techtrial/service/MemberServiceImpl.java
++++ b/src/main/java/com/crossover/techtrial/service/MemberServiceImpl.java
+@@ -3,10 +3,15 @@
+  */
+ package com.crossover.techtrial.service;
+ 
++import java.math.BigInteger;
++import java.time.LocalDateTime;
++import java.util.ArrayList;
+ import java.util.List;
+-import java.util.Optional;
++
+ import org.springframework.beans.factory.annotation.Autowired;
+ import org.springframework.stereotype.Service;
++
++import com.crossover.techtrial.exceptions.EntityNotFoundException;
+ import com.crossover.techtrial.model.Member;
+ import com.crossover.techtrial.repositories.MemberRepository;
+ 
+@@ -24,15 +29,36 @@ public class MemberServiceImpl implements MemberService{
+     return memberRepository.save(member);
+   }
+   
+-  public Member findById(Long memberId) {
+-    Optional<Member> optionalMember = memberRepository.findById(memberId);
+-    if (optionalMember.isPresent()) {
+-      return optionalMember.get();
+-    }else return null;
++  public Member findById(Long memberId) throws EntityNotFoundException {
++	  
++	  return memberRepository.findById(memberId)
++      .orElseThrow(() -> new EntityNotFoundException("Could not find member with id: " + memberId));
+   }
+   
+   public List<Member> findAll() {
+     return memberRepository.findAll();
+   }
+ 
++	@Override
++	public List<Member> getTopMembers(LocalDateTime startTime, LocalDateTime endTime) throws EntityNotFoundException {
++		List<Long> memberIdList =  memberRepository.findTopMembers(startTime, endTime);
++		List<Member> memberList = new ArrayList<>();
++		Long id;
++		for(int i=0; i<memberIdList.size(); i++)
++		{
++			//MySQL return BigInteger instead of Long
++			Object idCheck =  memberIdList.get(i);
++			if(idCheck instanceof BigInteger)
++			{
++				id =((BigInteger) idCheck).longValueExact();
++				memberList.add( findById(id) );
++			}
++			else if(idCheck instanceof Long)
++			{
++				id =(Long) idCheck;
++				memberList.add( findById(id) );
++			}
++		}
++		return memberList;
++	}
+ }
+diff --git a/src/main/java/com/crossover/techtrial/service/TransactionService.java b/src/main/java/com/crossover/techtrial/service/TransactionService.java
+new file mode 100644
+index 0000000..a501606
+--- /dev/null
++++ b/src/main/java/com/crossover/techtrial/service/TransactionService.java
+@@ -0,0 +1,17 @@
++package com.crossover.techtrial.service;
++
++import com.crossover.techtrial.exceptions.BookAlreadyIssuedException;
++import com.crossover.techtrial.exceptions.BookLimitException;
++import com.crossover.techtrial.exceptions.BookNotIssuedException;
++import com.crossover.techtrial.exceptions.EntityNotFoundException;
++import com.crossover.techtrial.model.Transaction;
++
++public interface TransactionService {
++
++	Transaction issueBookToMember(Long bookId, Long memberId) throws EntityNotFoundException, BookAlreadyIssuedException, BookLimitException;
++
++	Transaction returnBook(Long transactionId) throws EntityNotFoundException, BookNotIssuedException;
++
++	Transaction findById(Long transactionId) throws EntityNotFoundException;
++
++}
+diff --git a/src/main/java/com/crossover/techtrial/service/TransactionServiceImpl.java b/src/main/java/com/crossover/techtrial/service/TransactionServiceImpl.java
+new file mode 100644
+index 0000000..61eb0b5
+--- /dev/null
++++ b/src/main/java/com/crossover/techtrial/service/TransactionServiceImpl.java
+@@ -0,0 +1,73 @@
++package com.crossover.techtrial.service;
++
++import java.time.LocalDateTime;
++
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.stereotype.Service;
++
++import com.crossover.techtrial.constants.Constants;
++import com.crossover.techtrial.exceptions.BookAlreadyIssuedException;
++import com.crossover.techtrial.exceptions.BookLimitException;
++import com.crossover.techtrial.exceptions.BookNotIssuedException;
++import com.crossover.techtrial.exceptions.EntityNotFoundException;
++import com.crossover.techtrial.model.Book;
++import com.crossover.techtrial.model.Member;
++import com.crossover.techtrial.model.Transaction;
++import com.crossover.techtrial.repositories.TransactionRepository;
++
++@Service
++public class TransactionServiceImpl implements TransactionService {
++
++	 @Autowired TransactionRepository transactionRepository;
++	  
++	 @Autowired BookService bookService;
++	  
++	 @Autowired MemberService memberService;
++
++	@Override
++	public Transaction issueBookToMember(Long bookId, Long memberId) throws EntityNotFoundException, BookAlreadyIssuedException, BookLimitException {
++		
++		Book book = bookService.findById(bookId);
++		Member member = memberService.findById(memberId); 
++		
++		if( book.getIsIssued()) {
++			throw new BookAlreadyIssuedException("Book id " + bookId +" looking for has been issue to another member");
++		}
++		else if (member.getBookCount() >= Constants.MAX_NUMBER_OF_BOOK_ALLOWED)
++		{
++			throw new BookLimitException("Member id: "+ memberId + "has reached maximum  number of books issued. Please return a book to issue this book.");
++		}
++		else
++		{
++			Transaction transaction = new Transaction();
++			book.setIsIssued(true);
++			member.setBookCount(member.getBookCount()+1);
++			transaction.setBook(book);
++			transaction.setMember(member);
++			transaction.setDateOfIssue(LocalDateTime.now());    
++			return transactionRepository.save(transaction);
++			 
++		}
++	}
++	
++	@Override
++	  public Transaction findById(Long transactionId) throws EntityNotFoundException{
++		  return transactionRepository.findById(transactionId)
++		            .orElseThrow(() -> new EntityNotFoundException("Could not find transaction with id: " + transactionId));
++	  }
++
++	@Override
++	public Transaction returnBook(Long transactionId) throws EntityNotFoundException, BookNotIssuedException {
++		Transaction transaction = findById(transactionId);
++		transaction.setDateOfReturn(LocalDateTime.now());
++		long bookId = transaction.getBook().getId();
++		Book book = bookService.findById(bookId);
++		
++		if(!book.getIsIssued() || null == transaction.getDateOfReturn()) {
++			throw new BookNotIssuedException("Book id " + book.getId() +" which you are trying to return has not been issued");
++		}
++		book.setIsIssued(false);
++		transaction.getMember().setBookCount(transaction.getMember().getBookCount()-1);
++		return transactionRepository.save(transaction);
++	}
++}
+diff --git a/src/main/resources/application.properties b/src/main/resources/application.properties
+index bddee0f..ab03d47 100644
+--- a/src/main/resources/application.properties
++++ b/src/main/resources/application.properties
+@@ -1,14 +1,11 @@
+ #Database connection Parameters
+ spring.datasource.url: jdbc:mysql://localhost:3306/crosslibrary?createDatabaseIfNotExist=true&useSSL=false
+ spring.datasource.username=root
+-spring.datasource.password=
++spring.datasource.password=root
+ spring.datasource.driver-class-name=com.mysql.jdbc.Driver
+ 
+ spring.jpa.hibernate.ddl-auto=none
++spring.jpa.show-sql=true
+ 
+ spring.liquibase.change-log=classpath:/db/changelog/db.changelog-master.xml
+-spring.data.rest.base-path=/api
+-
+-logging.level.root=INFO
+-logging.level.org.hibernate.SQL=INFO
+-logging.level.org.springframework=INFO
++spring.data.rest.base-path=/api
+\ No newline at end of file
+diff --git a/src/test/java/com/crossover/techtrial/controller/BookControllerTest.java b/src/test/java/com/crossover/techtrial/controller/BookControllerTest.java
+new file mode 100644
+index 0000000..e92dc06
+--- /dev/null
++++ b/src/test/java/com/crossover/techtrial/controller/BookControllerTest.java
+@@ -0,0 +1,95 @@
++/**
++ * 
++ */
++package com.crossover.techtrial.controller;
++
++import org.junit.After;
++import org.junit.Assert;
++import org.junit.Before;
++import org.junit.Test;
++import org.junit.runner.RunWith;
++import org.mockito.Mock;
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.boot.test.context.SpringBootTest;
++import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
++import org.springframework.boot.test.web.client.TestRestTemplate;
++import org.springframework.http.HttpEntity;
++import org.springframework.http.HttpHeaders;
++import org.springframework.http.MediaType;
++import org.springframework.http.ResponseEntity;
++import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
++import org.springframework.test.web.servlet.MockMvc;
++import org.springframework.test.web.servlet.setup.MockMvcBuilders;
++
++import com.crossover.techtrial.model.Book;
++import com.crossover.techtrial.repositories.BookRepository;
++
++/**
++ * @author ankit ranjan
++ *
++ */
++@RunWith(SpringJUnit4ClassRunner.class)
++@SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
++public class BookControllerTest {
++  
++  MockMvc mockBookController;
++  
++  @Mock
++  private BookController bookController;
++  
++  @Autowired
++  private TestRestTemplate template;
++  
++  @Autowired
++  BookRepository bookRepository;
++  
++  private HttpEntity<Object> book;
++  private ResponseEntity<Book> response;
++  private long bookId;
++  
++  @Before
++  public void setup() throws Exception {
++    mockBookController = MockMvcBuilders.standaloneSetup(bookController).build();
++    book = getHttpEntity("{\"title\": \"Book1\", \"isIssued\": false }");
++       
++    response = template.postForEntity("/api/book", book, Book.class);
++    bookId = response.getBody().getId();
++  }
++  
++  @Test
++  public void testSaveBook() throws Exception {
++    
++    Assert.assertEquals("Book1", response.getBody().getTitle());
++    Assert.assertEquals(false, response.getBody().getIsIssued());
++    Assert.assertEquals(200,response.getStatusCode().value());
++  }
++  
++  @Test
++  public void testGetBookByIdSuccessfull() throws Exception {
++	response = template.getForEntity("/api/book/" +bookId, Book.class);
++    Assert.assertEquals("Book1", response.getBody().getTitle());
++    Assert.assertEquals(false, response.getBody().getIsIssued());
++    Assert.assertEquals(200,response.getStatusCode().value());
++   
++  }
++  
++  @Test
++  public void testGetBookByIdFailure() throws Exception {
++	response = template.getForEntity("/api/book/" +"-1", Book.class);
++    Assert.assertEquals(400, response.getStatusCode().value());
++   
++  }
++
++  @After
++  public void cleanUp() throws Exception
++  {
++	  //cleanup the user
++	  bookRepository.deleteById(bookId);
++  }
++  
++  private HttpEntity<Object> getHttpEntity(Object body) {
++    HttpHeaders headers = new HttpHeaders();
++    headers.setContentType(MediaType.APPLICATION_JSON);
++    return new HttpEntity<Object>(body, headers);
++  }
++}
+diff --git a/src/test/java/com/crossover/techtrial/controller/MemberControllerTest.java b/src/test/java/com/crossover/techtrial/controller/MemberControllerTest.java
+index 0368a7e..4427ac1 100644
+--- a/src/test/java/com/crossover/techtrial/controller/MemberControllerTest.java
++++ b/src/test/java/com/crossover/techtrial/controller/MemberControllerTest.java
+@@ -3,6 +3,7 @@
+  */
+ package com.crossover.techtrial.controller;
+ 
++import org.junit.After;
+ import org.junit.Assert;
+ import org.junit.Before;
+ import org.junit.Test;
+@@ -19,6 +20,7 @@ import org.springframework.http.ResponseEntity;
+ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+ import org.springframework.test.web.servlet.MockMvc;
+ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
++
+ import com.crossover.techtrial.model.Member;
+ import com.crossover.techtrial.repositories.MemberRepository;
+ 
+@@ -41,25 +43,39 @@ public class MemberControllerTest {
+   @Autowired
+   MemberRepository memberRepository;
+   
++  private ResponseEntity<Member> response;
++  private ResponseEntity<Member[]> responses;
++  private Long memberId;
++  
+   @Before
+   public void setup() throws Exception {
+     mockMvc = MockMvcBuilders.standaloneSetup(memberController).build();
++    HttpEntity<Object> member = getHttpEntity("{\"name\": \"test 1\", \"email\": \"test10000000000001@gmail.com\"," 
++            + " \"membershipStatus\": \"ACTIVE\",\"membershipStartDate\":\"2018-08-08T12:12:12\" }");
++    response = template.postForEntity("/api/member", member, Member.class);
++    memberId = response.getBody().getId();
+   }
+   
+   @Test
+   public void testMemberRegsitrationsuccessful() throws Exception {
+-    HttpEntity<Object> member = getHttpEntity(
+-        "{\"name\": \"test 1\", \"email\": \"test10000000000001@gmail.com\"," 
+-            + " \"membershipStatus\": \"ACTIVE\",\"membershipStartDate\":\"2018-08-08T12:12:12\" }");
+-    
+-    ResponseEntity<Member> response = template.postForEntity(
+-        "/api/member", member, Member.class);
+     
+     Assert.assertEquals("test 1", response.getBody().getName());
+     Assert.assertEquals(200,response.getStatusCode().value());
+-    
+-    //cleanup the user
+-    memberRepository.deleteById(response.getBody().getId());
++  }
++  
++  @Test
++  public void testGetMemberById() throws Exception {
++	response = template.getForEntity("/api/member/"+memberId, Member.class);
++	  
++    Assert.assertEquals("test 1", response.getBody().getName());
++    Assert.assertEquals(200,response.getStatusCode().value());
++  }
++  
++  
++  @After
++  public void cleanUp() throws Exception {
++	  //cleanup the user
++	  memberRepository.deleteById(memberId);
+   }
+ 
+   private HttpEntity<Object> getHttpEntity(Object body) {
+diff --git a/src/test/java/com/crossover/techtrial/controller/TransactionControllerTest.java b/src/test/java/com/crossover/techtrial/controller/TransactionControllerTest.java
+new file mode 100644
+index 0000000..58d6723
+--- /dev/null
++++ b/src/test/java/com/crossover/techtrial/controller/TransactionControllerTest.java
+@@ -0,0 +1,122 @@
++/**
++ * 
++ */
++package com.crossover.techtrial.controller;
++
++import org.junit.After;
++import org.junit.Assert;
++import org.junit.Before;
++import org.junit.Test;
++import org.junit.runner.RunWith;
++import org.mockito.Mock;
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.boot.test.context.SpringBootTest;
++import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
++import org.springframework.boot.test.web.client.TestRestTemplate;
++import org.springframework.http.HttpEntity;
++import org.springframework.http.HttpHeaders;
++import org.springframework.http.MediaType;
++import org.springframework.http.ResponseEntity;
++import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
++import org.springframework.test.web.servlet.MockMvc;
++import org.springframework.test.web.servlet.setup.MockMvcBuilders;
++
++import com.crossover.techtrial.model.Book;
++import com.crossover.techtrial.model.Member;
++import com.crossover.techtrial.model.Transaction;
++import com.crossover.techtrial.repositories.BookRepository;
++import com.crossover.techtrial.repositories.MemberRepository;
++import com.crossover.techtrial.repositories.TransactionRepository;
++
++/**
++ * @author ankit ranjan
++ *
++ */
++@RunWith(SpringJUnit4ClassRunner.class)
++@SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
++public class TransactionControllerTest {
++  
++  @Mock private MemberController transactionController;
++  @Mock private BookController bookController;
++  @Mock private MemberController memberController;
++  @Autowired private TestRestTemplate template;
++  @Autowired TransactionRepository transactionRepository;
++  @Autowired MemberRepository memberRepository;
++  @Autowired BookRepository bookRepository;
++  
++  private Long bookId, memberId;
++  private ResponseEntity<Transaction> response;  
++  private MockMvc mockTransactionController, mockBookController, mockMemberController;
++  
++  @Before
++  public void setup() throws Exception {
++    mockTransactionController = MockMvcBuilders.standaloneSetup(transactionController).build();
++    mockBookController = MockMvcBuilders.standaloneSetup(bookController).build();
++    mockMemberController = MockMvcBuilders.standaloneSetup(memberController).build();
++    
++    HttpEntity<Object> book = getHttpEntity( "{\"title\": \"Book 1\", \"isIssued\": false }");
++    ResponseEntity<Book> responseBook = template.postForEntity("/api/book", book, Book.class);
++    bookId = responseBook.getBody().getId();
++    
++    HttpEntity<Object> member = getHttpEntity("{\"name\": \"Memeber01\", \"email\": \"member001@gmail.com\"," 
++                + " \"membershipStatus\": \"ACTIVE\",\"membershipStartDate\":\"2019-01-06T00:00:00\" }");
++        
++   ResponseEntity<Member> responseMember = template.postForEntity("/api/member", member, Member.class);
++   memberId =  responseMember.getBody().getId();
++  }
++  
++  @Test
++  public void issueBookToMemberSuccessful() throws Exception {
++    HttpEntity<Object> transaction = getHttpEntity( "{\"bookId\": " + bookId +", \"memberId\": "+ memberId+" }");
++    response = template.postForEntity("/api/transaction", transaction, Transaction.class);
++   
++	Assert.assertEquals(bookId, response.getBody().getBook().getId());
++	Assert.assertEquals(memberId, response.getBody().getMember().getId());
++	Assert.assertEquals(200,response.getStatusCode().value());
++  }
++  
++  @Test
++  public void issueBookToMemberFailure() throws Exception {
++    HttpEntity<Object> transaction = getHttpEntity("{\"bookId\": " + "-1" +", \"memberId\": "+ memberId+" }");
++    ResponseEntity<Transaction> response = template.postForEntity("/api/transaction", transaction, Transaction.class);
++	
++	Assert.assertEquals(404,response.getStatusCode().value());
++  }
++  
++  @Test
++  public void issueAlreadyIssuedBookToMemberForbidden() throws Exception {
++	//Create a transaction  
++	  HttpEntity<Object> transaction = getHttpEntity( "{\"bookId\": " + bookId +", \"memberId\": "+ memberId +" }");
++	    template.postForEntity("/api/transaction", transaction, Transaction.class);
++	    
++	    //create another member
++	    HttpEntity<Object> member2 = getHttpEntity("{\"name\": \"Memeber02\", \"email\": \"member002@gmail.com\"," 
++                + " \"membershipStatus\": \"ACTIVE\",\"membershipStartDate\":\"2019-01-06T00:00:00\" }");
++        
++	   ResponseEntity<Member> responseMember = template.postForEntity("/api/member", member2, Member.class);
++	   Long member2Id =  responseMember.getBody().getId();
++	  
++	   //Try Assigning same book to member2
++	   transaction = getHttpEntity( "{\"bookId\": " + bookId +", \"memberId\": "+ member2Id +" }");
++	   response =  template.postForEntity("/api/transaction", transaction, Transaction.class); 
++		Assert.assertEquals(403,response.getStatusCode().value());
++	  }
++  
++  @After
++  public void cleanUp() {
++	//cleanup the user
++	  if(null != response && null != response.getBody())
++	  {
++		  transactionRepository.deleteById(response.getBody().getId());
++	  }
++	  memberRepository.deleteById(memberId);
++	  bookRepository.deleteById(bookId);
++	  
++  }
++  
++  private HttpEntity<Object> getHttpEntity(Object body) {
++    HttpHeaders headers = new HttpHeaders();
++    headers.setContentType(MediaType.APPLICATION_JSON);
++    return new HttpEntity<Object>(body, headers);
++  }
++}
+-- 
+2.11.0.windows.1
+

@@ -4,7 +4,7 @@
 package com.crossover.techtrial.model;
 
 /**
- * @author kshah
+ * @author ankit ranjan
  *
  */
 public enum MembershipStatus {

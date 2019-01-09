@@ -9,7 +9,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  */
 @SpringBootApplication
 public class CrossLibraryApplication {
-  public static void main(String[] args) {
-    SpringApplication.run(CrossLibraryApplication.class, args);
-  }
+	public static void main(String[] args) {
+		SpringApplication.run(CrossLibraryApplication.class, args);
+	}
 }
