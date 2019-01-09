@@ -3,55 +3,73 @@
  */
 package com.crossover.techtrial.controller;
 
-import java.time.LocalDateTime;
 import java.util.Map;
+
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+
+import com.crossover.techtrial.exceptions.BookAlreadyIssuedException;
+import com.crossover.techtrial.exceptions.BookLimitException;
+import com.crossover.techtrial.exceptions.BookNotIssuedException;
+import com.crossover.techtrial.exceptions.EntityNotFoundException;
 import com.crossover.techtrial.model.Transaction;
-import com.crossover.techtrial.repositories.BookRepository;
-import com.crossover.techtrial.repositories.MemberRepository;
-import com.crossover.techtrial.repositories.TransactionRepository;
+import com.crossover.techtrial.service.TransactionService;
 
 /**
- * @author kshah
+ * @author ankit ranjan
  *
  */
 @RestController
 public class TransactionController {
   
-  @Autowired TransactionRepository transactionRepository;
+  @Autowired TransactionService transactionService;
   
-  @Autowired BookRepository bookRepository;
-  
-  @Autowired MemberRepository memberRepository;
   /*
    * PLEASE DO NOT CHANGE SIGNATURE OR METHOD TYPE OF END POINTS
    * Example Post Request :  { "bookId":1,"memberId":33 }
    */
   @PostMapping(path = "/api/transaction")
-  public ResponseEntity<Transaction> issueBookToMember(@RequestBody Map<String, Long> params){
-    
+  public ResponseEntity<Transaction> issueBookToMember(@RequestBody Map<String, Long> params) {
+	
+	Transaction transaction;
     Long bookId = params.get("bookId");
     Long memberId = params.get("memberId");
-    Transaction transaction = new Transaction();
-    transaction.setBook(bookRepository.findById(bookId).orElse(null));
-    transaction.setMember(memberRepository.findById(memberId).get());
-    transaction.setDateOfIssue(LocalDateTime.now());    
-    return ResponseEntity.ok().body(transactionRepository.save(transaction));
+    
+    try 
+    {
+    	transaction = transactionService.issueBookToMember(bookId, memberId);
+	} 
+    catch (EntityNotFoundException e) {
+		return ResponseEntity.notFound().build();
+	} 
+    catch (BookAlreadyIssuedException | BookLimitException e) {
+    	return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+	}
+    return ResponseEntity.ok().body(transaction);
   }
+  
+  
   /*
    * PLEASE DO NOT CHANGE SIGNATURE OR METHOD TYPE OF END POINTS
    */
   @PatchMapping(path= "/api/transaction/{transaction-id}/return")
-  public ResponseEntity<Transaction> returnBookTransaction(@PathVariable(name="transaction-id") Long transactionId){
-    Transaction transaction = transactionRepository.findById(transactionId).get();
-    transaction.setDateOfReturn(LocalDateTime.now());
+  public ResponseEntity<Transaction> returnBookTransaction(@PathVariable(name="transaction-id") Long transactionId) throws EntityNotFoundException{
+    Transaction transaction;
+	try 
+	{
+		transaction = transactionService.returnBook(transactionId);
+	} 
+	catch (BookNotIssuedException e) 
+	{
+		return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+	}
     return ResponseEntity.ok().body(transaction);
   }
-
+  
 }

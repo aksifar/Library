@@ -14,4 +14,5 @@ import org.springframework.data.rest.core.annotation.RestResource;
 @RestResource(exported = false)
 public interface TransactionRepository extends CrudRepository<Transaction, Long> {
 
+	public Transaction save(Transaction transaction);
 }

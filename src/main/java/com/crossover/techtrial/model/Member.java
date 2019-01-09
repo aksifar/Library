@@ -5,6 +5,7 @@ package com.crossover.techtrial.model;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
+
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.EnumType;
@@ -13,32 +14,44 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.Table;
+import javax.persistence.UniqueConstraint;
+import javax.validation.constraints.Max;
+import javax.validation.constraints.Pattern;
+import javax.validation.constraints.Size;
 
 /**
- * @author kshah
+ * @author ankit ranjan
  *
  */
 @Entity
-@Table(name = "member")
+@Table(name = "member", uniqueConstraints = @UniqueConstraint(name = "member_email", columnNames = {"email"}))
 public class Member implements Serializable{
   
   private static final long serialVersionUID = 9045098179799205444L;
   
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
-  Long id;
+  private Long id;
 
   @Column(name = "name")
-  String name;
+  @Size(min = 2, max = 100,  message = "Name must be between 2 and 100 characters")
+  @Pattern(regexp  ="^[a-zA-Z][a-zA-Z 0-9.,$;]+$")
+  private String name;
 
-  @Column(name = "email")
-  String email;
+  @Size(max = 100)
+  @Column(name = "email", unique=true)
+//  @Email(message = "Email should be valid")
+  private String email;
   
   @Enumerated(EnumType.STRING)
-  MembershipStatus membershipStatus;
+  private MembershipStatus membershipStatus;
   
   @Column(name = "membership_start_date")
-  LocalDateTime membershipStartDate;
+  private LocalDateTime membershipStartDate = LocalDateTime.now();
+  
+  @Column(name ="book_count")
+  @Max(value = 5)
+  private int bookCount = 0; 
 
   public Long getId() {
     return id;
@@ -80,7 +93,15 @@ public class Member implements Serializable{
     this.membershipStartDate = membershipStartDate;
   }
 
-  @Override
+  public int getBookCount() {
+	return bookCount;
+  }
+
+	public void setBookCount(int bookCount) {
+		this.bookCount = bookCount;
+	}
+
+@Override
   public int hashCode() {
     final int prime = 31;
     int result = 1;
@@ -121,8 +142,4 @@ public class Member implements Serializable{
   public String toString() {
     return "Member [id=" + id + ", name=" + name + ", email=" + email + "]";
   }
-  
-  
-  
-
 }

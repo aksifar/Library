@@ -4,8 +4,8 @@
 package com.crossover.techtrial.controller;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -15,7 +15,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import com.crossover.techtrial.controller.mapper.MemberMapper;
 import com.crossover.techtrial.dto.TopMemberDTO;
+import com.crossover.techtrial.exceptions.EntityNotFoundException;
 import com.crossover.techtrial.model.Member;
 import com.crossover.techtrial.service.MemberService;
 
@@ -33,8 +36,8 @@ public class MemberController {
    * PLEASE DO NOT CHANGE SIGNATURE OR METHOD TYPE OF END POINTS
    */
   @PostMapping(path = "/api/member")
-  public ResponseEntity<Member> register(@RequestBody Member p) {
-    return ResponseEntity.ok(memberService.save(p));
+  public ResponseEntity<Member> register(@RequestBody Member member) {
+    return ResponseEntity.ok(memberService.save(member));
   }
   
   /*
@@ -49,7 +52,7 @@ public class MemberController {
    * PLEASE DO NOT CHANGE API SIGNATURE OR METHOD TYPE OF END POINTS
    */
   @GetMapping(path = "/api/member/{member-id}")
-  public ResponseEntity<Member> getMemberById(@PathVariable(name="member-id", required=true)Long memberId) {
+  public ResponseEntity<Member> getMemberById(@PathVariable(name="member-id", required=true)Long memberId) throws EntityNotFoundException {
     Member member = memberService.findById(memberId);
     if (member != null) {
       return ResponseEntity.ok(member);
@@ -65,19 +68,14 @@ public class MemberController {
    * 
    * DONT CHANGE METHOD SIGNATURE AND RETURN TYPES
    * @return
+ * @throws EntityNotFoundException 
    */
   @GetMapping(path = "/api/member/top-member")
   public ResponseEntity<List<TopMemberDTO>> getTopMembers(
       @RequestParam(value="startTime", required=true) @DateTimeFormat(pattern="yyyy-MM-dd'T'HH:mm:ss") LocalDateTime startTime,
-      @RequestParam(value="endTime", required=true) @DateTimeFormat(pattern="yyyy-MM-dd'T'HH:mm:ss") LocalDateTime endTime){
-    List<TopMemberDTO> topDrivers = new ArrayList<>();
-    /**
-     * Your Implementation Here. 
-     * 
-     */
-    
-    return ResponseEntity.ok(topDrivers);
-    
+      @RequestParam(value="endTime", required=true) @DateTimeFormat(pattern="yyyy-MM-dd'T'HH:mm:ss") LocalDateTime endTime) throws EntityNotFoundException
+  {
+	 List<TopMemberDTO> topMembers = MemberMapper.makeTopMemberList( memberService.getTopMembers(startTime, endTime));
+     return ResponseEntity.ok(topMembers);
   }
-  
 }

@@ -4,6 +4,8 @@
 package com.crossover.techtrial.service;
 
 import java.util.List;
+
+import com.crossover.techtrial.exceptions.EntityNotFoundException;
 import com.crossover.techtrial.model.Book;
 
 /**
@@ -15,8 +17,8 @@ public interface BookService {
   
   public List<Book> getAll();
   
-  public Book save(Book p);
+  public Book save(Book book);
   
-  public Book findById(Long bookId);
+  public Book findById(Long bookId) throws EntityNotFoundException;
   
 }

@@ -3,10 +3,15 @@
  */
 package com.crossover.techtrial.repositories;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.PagingAndSortingRepository;
+import org.springframework.data.repository.query.Param;
 import org.springframework.data.rest.core.annotation.RestResource;
+
 import com.crossover.techtrial.model.Member;
 
 /**
@@ -17,4 +22,9 @@ import com.crossover.techtrial.model.Member;
 public interface MemberRepository extends PagingAndSortingRepository<Member, Long> {
   Optional<Member> findById(Long id);
   List<Member> findAll();
+  
+ @Query(value="SELECT member_id FROM crosslibrary.transaction WHERE date_of_issue >= :startTime \n" + 
+  		"AND (date_of_return <= :endTime && date_of_return IS NOT NULL)\n" + 
+  		"GROUP BY member_id ORDER BY COUNT(*) DESC LIMIT 5",  nativeQuery = true)
+  List<Long> findTopMembers(@Param("startTime") LocalDateTime startTime, @Param("endTime")  LocalDateTime endTime);
 }

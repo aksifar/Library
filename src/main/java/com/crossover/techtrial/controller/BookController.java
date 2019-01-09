@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+
+import com.crossover.techtrial.exceptions.EntityNotFoundException;
 import com.crossover.techtrial.model.Book;
 import com.crossover.techtrial.service.BookService;
 
@@ -45,7 +47,7 @@ public class BookController {
    * PLEASE DO NOT CHANGE API SIGNATURE OR METHOD TYPE OF END POINTS
    */
   @GetMapping(path = "/api/book/{book-id}")
-  public ResponseEntity<Book> getRideById(@PathVariable(name="book-id",required=true)Long bookId){
+  public ResponseEntity<Book> getBookById(@PathVariable(name="book-id",required=true)Long bookId) throws EntityNotFoundException{
     Book book = bookService.findById(bookId);
     if (book!=null)
       return ResponseEntity.ok(book);

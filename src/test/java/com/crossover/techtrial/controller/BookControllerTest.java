@@ -21,67 +21,75 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import com.crossover.techtrial.model.Member;
-import com.crossover.techtrial.repositories.MemberRepository;
+import com.crossover.techtrial.model.Book;
+import com.crossover.techtrial.repositories.BookRepository;
 
 /**
- * @author kshah
+ * @author ankit ranjan
  *
  */
 @RunWith(SpringJUnit4ClassRunner.class)
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
-public class MemberControllerTest {
+public class BookControllerTest {
   
-  MockMvc mockMvc;
+  MockMvc mockBookController;
   
   @Mock
-  private MemberController memberController;
+  private BookController bookController;
   
   @Autowired
   private TestRestTemplate template;
   
   @Autowired
-  MemberRepository memberRepository;
+  BookRepository bookRepository;
   
-  private ResponseEntity<Member> response;
-  private ResponseEntity<Member[]> responses;
-  private Long memberId;
+  private HttpEntity<Object> book;
+  private ResponseEntity<Book> response;
+  private long bookId;
   
   @Before
   public void setup() throws Exception {
-    mockMvc = MockMvcBuilders.standaloneSetup(memberController).build();
-    HttpEntity<Object> member = getHttpEntity("{\"name\": \"test 1\", \"email\": \"test10000000000001@gmail.com\"," 
-            + " \"membershipStatus\": \"ACTIVE\",\"membershipStartDate\":\"2018-08-08T12:12:12\" }");
-    response = template.postForEntity("/api/member", member, Member.class);
-    memberId = response.getBody().getId();
+    mockBookController = MockMvcBuilders.standaloneSetup(bookController).build();
+    book = getHttpEntity("{\"title\": \"Book1\", \"isIssued\": false }");
+       
+    response = template.postForEntity("/api/book", book, Book.class);
+    bookId = response.getBody().getId();
   }
   
   @Test
-  public void testMemberRegsitrationsuccessful() throws Exception {
+  public void testSaveBook() throws Exception {
     
-    Assert.assertEquals("test 1", response.getBody().getName());
+    Assert.assertEquals("Book1", response.getBody().getTitle());
+    Assert.assertEquals(false, response.getBody().getIsIssued());
     Assert.assertEquals(200,response.getStatusCode().value());
   }
   
   @Test
-  public void testGetMemberById() throws Exception {
-	response = template.getForEntity("/api/member/"+memberId, Member.class);
-	  
-    Assert.assertEquals("test 1", response.getBody().getName());
+  public void testGetBookByIdSuccessfull() throws Exception {
+	response = template.getForEntity("/api/book/" +bookId, Book.class);
+    Assert.assertEquals("Book1", response.getBody().getTitle());
+    Assert.assertEquals(false, response.getBody().getIsIssued());
     Assert.assertEquals(200,response.getStatusCode().value());
+   
   }
   
-  
-  @After
-  public void cleanUp() throws Exception {
-	  //cleanup the user
-	  memberRepository.deleteById(memberId);
+  @Test
+  public void testGetBookByIdFailure() throws Exception {
+	response = template.getForEntity("/api/book/" +"-1", Book.class);
+    Assert.assertEquals(400, response.getStatusCode().value());
+   
   }
 
+  @After
+  public void cleanUp() throws Exception
+  {
+	  //cleanup the user
+	  bookRepository.deleteById(bookId);
+  }
+  
   private HttpEntity<Object> getHttpEntity(Object body) {
     HttpHeaders headers = new HttpHeaders();
     headers.setContentType(MediaType.APPLICATION_JSON);
     return new HttpEntity<Object>(body, headers);
   }
-
 }

@@ -12,7 +12,7 @@ import javax.persistence.Id;
 import javax.persistence.Table;
 
 /**
- * @author kshah
+ * @author ankit ranjan
  *
  */
 @Entity
@@ -26,11 +26,14 @@ public class Book implements Serializable{
   
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
-  Long id;
+  private Long id;
 
   @Column(name = "title")
-  String title;
+  private String title;
 
+  @Column()
+  private Boolean isIssued = false;
+  
   public Long getId() {
     return id;
   }
@@ -47,7 +50,15 @@ public class Book implements Serializable{
     this.title = title;
   }
   
-  @Override
+  public Boolean getIsIssued() {
+	return isIssued;
+  }
+
+  public void setIsIssued(Boolean isIssued) {
+	this.isIssued = isIssued;
+  }
+
+@Override
   public int hashCode() {
     final int prime = 31;
     int result = 1;
